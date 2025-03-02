@@ -18,6 +18,3 @@ venv/
 # IDE settings
 .vscode/
 .idea/
-
-# Dependencies
-requirements.txt
