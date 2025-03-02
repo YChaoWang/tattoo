@@ -23,7 +23,6 @@ python3 vgg_compare/vgg_same_folder.py
 - 執行範例 SVM預測
 '''bash
 python3 svm/svm_only_similarity_formula.py
-'''
 
 ## SuperGlue 特徵點配對
 - 檔案
@@ -32,12 +31,11 @@ python3 svm/svm_only_similarity_formula.py
 - 執行範例
 '''bash
 python3 superglue_compare/superglue_same_folder_aligned.py 
-'''
+
 
 ## 對齊+VGG篩選資料夾+SuperGlue特徵點配對
 - 檔案
 tattoo_all_flows.py
 - 執行範例
-'''bahs 
+'''bash
 python3 tattoo_all_flows.py
-'''
