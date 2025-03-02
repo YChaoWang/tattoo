@@ -7,10 +7,10 @@ import torch
 import os
 import cv2
 
-from superglue_compare.models.image_alignment import compare_images
-from superglue_compare.pairs_txt import generate_pairs_txt
-from superglue_compare.models.matching import Matching
-from superglue_compare.models.utils import make_matching_plot, AverageTimer, read_image
+from models.image_alignment import compare_images
+from pairs_txt import generate_pairs_txt
+from models.matching import Matching
+from models.utils import make_matching_plot, AverageTimer, read_image
 
 torch.set_grad_enabled(False)
 

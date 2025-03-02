@@ -74,6 +74,11 @@ def main():
         if folder.name.isdigit() and start_folder <= int(folder.name) <= end_folder
     ]
 
+    # 預處理所有圖片（重新命名、轉換格式）
+    for folder in selected_folders:  # 只处理指定范围内的文件夹
+        functions.rename_files_in_directory(folder)
+        functions.convert_folder_jpg_to_png(folder)
+
     # **遍歷範圍內的文件夾**
     for folder in selected_folders:
         image_files = sorted([f.name for f in folder.glob("*.png")])  # 确保文件名按顺序
@@ -151,7 +156,7 @@ def main():
         save_results_to_csv(
             results,
             folder.name,
-            "test/results/pairs_data/matches/same/all_data.csv",
+            "test/results/pairs_data/matches/same/superglue_same_aligned_data.csv",
         )
 
 
