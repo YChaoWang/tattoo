@@ -4,13 +4,12 @@
 ## 資料集
 刺青圖片：可以放在與README.md同一層，資料夾名稱為image_1（也可以用其他名稱，但這樣程式碼也要記得修改）
 
-
 ## VGG 比對
 - 檔案
 1. VGG沒對齊相同 -> vgg_compare/vgg_same_folder.py
-2. VGG沒對齊不同 -> vgg_compare/vgg_different_folder.py
+2. VGG沒對齊不同（跳過只含一張圖片的子資料夾） -> vgg_compare/vgg_different_folder.py
 3. VGG對齊相同 -> vgg_compare/align/vgg_same_folder_aligned.py
-4. VGG對齊不同 -> vgg_compare/align/vgg_different_folder_aligned.py
+4. VGG對齊不同（跳過只含一張圖片的子資料夾） -> vgg_compare/align/vgg_different_folder_aligned.py
 - 執行範例 VGG沒對齊相同
 ```bash
 python3 vgg_compare/vgg_same_folder.py
