@@ -40,6 +40,18 @@ classifier = {
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+def count_images_in_folder(folder_path):
+    """計算資料夾中的圖片數量"""
+    return len(
+        [
+            f
+            for f in os.listdir(folder_path)
+            if os.path.isfile(os.path.join(folder_path, f))
+            and (f.endswith(".jpg") or f.endswith(".png"))
+        ]
+    )
+
+
 def extract_features(img, img_path, model, layer_names):
     """Extract VGG16 features from an image"""
     img = Image.fromarray(img).convert("RGB")
@@ -173,21 +185,27 @@ def main():
     layer_outputs = [base_model.get_layer(name).output for name in layer_names]
     model = Model(inputs=base_model.input, outputs=layer_outputs)
 
-    # 2. PROCESS FOLDERS AND EXTRACT VGG FEATURES
-    print("Processing folders and extracting VGG features...")
+    # 2. FILTER FOLDERS AND PROCESS THOSE WITH AT LEAST 2 IMAGES
+    print("Filtering folders with at least 2 images...")
 
-    # Count valid folders
-    valid_folders = [
-        folder_num
-        for folder_num in range(start_folder, end_folder + 1)
-        if os.path.isdir(os.path.join(root_dir, str(folder_num)))
-    ]
-    print(f"Number of valid folders: {len(valid_folders)}")
+    # Filter valid folders that have at least 2 images
+    valid_folders = []
+    for folder_num in range(start_folder, end_folder + 1):
+        folder_path = os.path.join(root_dir, str(folder_num))
+        if os.path.isdir(folder_path):
+            image_count = count_images_in_folder(folder_path)
+            if image_count >= 2:
+                valid_folders.append(folder_num)
+                print(f"Folder {folder_num} has {image_count} images - included")
+            else:
+                print(f"Folder {folder_num} has only {image_count} images - skipped")
+
+    print(f"Number of valid folders with at least 2 images: {len(valid_folders)}")
 
     all_comparisons = []
     total_comparisons = 0
 
-    # Collect all images across all folders
+    # Collect all images across valid folders
     all_images = []
     for folder_num in valid_folders:
         folder_path = os.path.join(root_dir, str(folder_num))
@@ -291,19 +309,34 @@ def main():
         # Calculate average confidence by subfolder for this image
         if img_comparisons:
             comparisons_df = pd.DataFrame(img_comparisons)
+            # 確保只考慮至少有2張圖片的資料夾
+            folders_with_counts = {}
+            for folder_num in valid_folders:
+                folder_path = os.path.join(root_dir, str(folder_num))
+                folders_with_counts[folder_path] = count_images_in_folder(folder_path)
+
+            # 過濾出只有屬於有效資料夾的比較結果
+            valid_comparisons_df = comparisons_df[
+                comparisons_df["folder_img2"].apply(lambda x: x in folders_with_counts)
+            ]
+
             avg_by_folder = (
-                comparisons_df.groupby("folder_img2")["confidence"].mean().reset_index()
+                valid_comparisons_df.groupby("folder_img2")["confidence"]
+                .mean()
+                .reset_index()
             )
 
-            # Sort by confidence and get top 10
+            # Sort by confidence and get top 7
             top_folders = avg_by_folder.sort_values("confidence", ascending=False).head(
                 7
             )
 
-            print(f"\nTop 10 matching folders for {base_img_path}:")
+            print(f"\nTop 7 matching folders for {base_img_path}:")
             for i, (_, row) in enumerate(top_folders.iterrows(), 1):
+                folder = row["folder_img2"]
+                img_count = folders_with_counts.get(folder, 0)
                 print(
-                    f"  {i}. {row['folder_img2']} - Confidence: {row['confidence']:.4f}"
+                    f"  {i}. {folder} - Confidence: {row['confidence']:.4f} - Images: {img_count}"
                 )
 
             # Run SuperGlue on top 7 folders
@@ -459,23 +492,32 @@ def main():
     all_comparisons_file = results_dir / "all_tattoos_vgg_comparisons.csv"
     all_comparisons_df.to_csv(all_comparisons_file, index=False)
 
-    # Save top 10 folders for all images
-    print("Saving top 10 confidence subfolders for all images...")
+    # Save top 7 folders for all images
+    print("Saving top 7 confidence subfolders for all images...")
+
+    # 確保只考慮至少有2張圖片的資料夾
+    folders_with_counts = {}
+    for folder_num in valid_folders:
+        folder_path = os.path.join(root_dir, str(folder_num))
+        folders_with_counts[folder_path] = count_images_in_folder(folder_path)
 
     result_data = []
     for img_path in all_comparisons_df["img1"].unique():
         # Get all comparisons for this image
         img_df = all_comparisons_df[all_comparisons_df["img1"] == img_path]
 
+        # 過濾只保留有效資料夾的比較結果
+        img_df = img_df[img_df["folder_img2"].apply(lambda x: x in folders_with_counts)]
+
         # Calculate average confidence by subfolder
         avg_by_folder = img_df.groupby("folder_img2")["confidence"].mean().reset_index()
 
-        # Sort by confidence and get top 10
-        top_folders = avg_by_folder.sort_values("confidence", ascending=False).head(10)
+        # Sort by confidence and get top 7
+        top_folders = avg_by_folder.sort_values("confidence", ascending=False).head(7)
 
         row_data = {"img1": img_path}
 
-        # Add top 10 folders and confidences
+        # Add top 7 folders and confidences
         for i, (_, row) in enumerate(top_folders.iterrows(), 1):
             row_data[f"folder_img2_no{i}"] = row["folder_img2"]
             row_data[f"confidence_{i}"] = row["confidence"]
@@ -488,7 +530,7 @@ def main():
 
         # Ensure all columns exist
         columns = ["img1"]
-        for i in range(1, 11):
+        for i in range(1, 8):
             columns.extend([f"folder_img2_no{i}", f"confidence_{i}"])
 
         for col in columns:
@@ -498,7 +540,7 @@ def main():
         # Reorder columns and rename as needed
         result_df = result_df[columns]
         new_columns = ["img1"]
-        for i in range(1, 11):
+        for i in range(1, 8):
             new_columns.extend([f"folder_img2_no{i}", "confidence"])
 
         result_df.columns = new_columns
