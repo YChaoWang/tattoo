@@ -38,7 +38,7 @@ python3 superglue_compare/superglue_same_folder_aligned.py
 
 ### 對齊+VGG篩選資料夾+SuperGlue特徵點配對
 - 檔案
-tattoo_all_flows.py
+（跳過只含一張圖片的子資料夾）tattoo_all_flows.py
 - 執行範例
 ```bash
 python3 tattoo_all_flows.py
