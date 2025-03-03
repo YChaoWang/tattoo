@@ -98,16 +98,22 @@ def main():
     print(f"\n📂 有效文件夾數量: {len(valid_folders)}")
     print(f"🖼 總圖片比對數量: {total_comparisons}\n")
 
+    processed_count = 0  # 記錄已比對的圖片對數量
+
     # **遍歷文件夾對**
     for folder_idx, (folder1, folder2) in enumerate(folder_pairs, start=1):
-        print(
-            f"\n🔄 處理第 {folder_idx}/{len(folder_pairs)} 對文件夾: {folder1.name} 與 {folder2.name}"
-        )
 
         # 獲取兩個文件夾中的所有PNG圖片
         images1 = sorted([f for f in folder1.glob("*.png")])
         images2 = sorted([f for f in folder2.glob("*.png")])
 
+        # 本輪要處理的圖片對數量
+        current_pairs_count = len(images1) * len(images2)
+
+        print(
+            f"\n🔄 處理第 {folder_idx}/{len(folder_pairs)} 對文件夾: {folder1.name} 與 {folder2.name}"
+        )
+        print(f"📊 當前進度: {processed_count}/{total_comparisons}")
         # 構建所有可能的跨文件夾圖片對
         all_pairs = list(itertools.product(images1, images2))
         print(f"    共有 {len(all_pairs)} 對跨文件夾圖片需要比較")
@@ -122,8 +128,7 @@ def main():
         with open(pairs_txt_path, "w") as f:
             for pair_idx, (img1_path, img2_path) in enumerate(all_pairs, start=1):
                 # 檢查是否需要跳過某些圖片對（可選）
-                if pair_idx % 10 == 0:  # 每10對輸出一次進度
-                    print(f"    進度: {pair_idx}/{len(all_pairs)}")
+                print(f"    目前正在比對第 {pair_idx}/{len(all_pairs)} 張圖片對")
 
                 img1, img2 = cv2.imread(str(img1_path)), cv2.imread(str(img2_path))
                 if img1 is None or img2 is None:
@@ -203,6 +208,8 @@ def main():
                 os.remove(temp_file)
             except Exception as e:
                 print(f"⚠️ 無法刪除臨時文件 {temp_file} - {e}")
+
+        processed_count += current_pairs_count
 
     print(f"\n✨ 所有文件夾配對處理完成！總共處理了 {len(folder_pairs)} 對文件夾")
 
