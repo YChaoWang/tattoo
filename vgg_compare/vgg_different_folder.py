@@ -154,7 +154,7 @@ def compare_images_in_folders(root_dir="images", start_folder=1, end_folder=32):
 
 # 執行函數
 compare_images_in_folders(
-    root_dir="image_1",
     start_folder=1,
     end_folder=180,
+    root_dir="image_1",
 )

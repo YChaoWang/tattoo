@@ -162,4 +162,8 @@ def process_same_folder_images(start_folder, end_folder, root_dir):
 
 
 # 示例使用
-process_same_folder_images(start_folder=1, end_folder=180, root_dir="image_1")
+process_same_folder_images(
+    start_folder=1,
+    end_folder=180,
+    root_dir="image_1",
+)

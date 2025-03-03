@@ -10,6 +10,7 @@ import os
 import itertools
 import time
 from tqdm import tqdm
+from pathlib import Path
 
 
 def process_images(start_folder, end_folder, root_dir):
@@ -82,36 +83,52 @@ def process_images(start_folder, end_folder, root_dir):
         else:
             df.to_csv(csv_path, mode="w", header=True, index=False)
 
-    # 初始化 tqdm 進度條，顯示處理文件夾的進度
-    folder_range = range(start_folder, end_folder + 1)
-    progress_bar = tqdm(folder_range, desc="處理文件夾", position=0)
+    # **按數字順序排序子文件夾**
+    all_folders = sorted(
+        [folder for folder in Path(root_dir).glob("*") if folder.is_dir()],
+        key=lambda f: int(f.name) if f.name.isdigit() else f.name,
+    )
 
-    for folder_num in progress_bar:
+    # **篩選出指定範圍內的文件夾**
+    selected_folders = [
+        folder
+        for folder in all_folders
+        if folder.name.isdigit() and start_folder <= int(folder.name) <= end_folder
+    ]
+
+    # 初始化 tqdm 進度條
+    progress_bar = tqdm(selected_folders, desc="處理文件夾", position=0)
+
+    for folder_path in progress_bar:
+        folder_num = int(folder_path.name)
         progress_bar.set_description(f"處理文件夾 {folder_num}")
-        folder_path = os.path.join(root_dir, str(folder_num))
-        if not os.path.isdir(folder_path):
-            continue
 
         # 獲取當前文件夾內的所有圖片
-        img_paths = [
-            os.path.join(folder_path, f)
-            for f in os.listdir(folder_path)
-            if f.endswith(".png")
-        ]
+        img_paths = sorted(
+            [f for f in folder_path.glob("*.jpg")]
+            + [f for f in folder_path.glob("*.png")],
+            key=lambda x: x.name,
+        )
 
         # 定義當前文件夾的 CSV 檔案名稱
         csv_path = f"feature_similarities_{folder_num}.csv"
 
         # 計算每對圖片的特徵相似度
         for img1_path, img2_path in itertools.combinations(img_paths, 2):
-            features1 = extract_features(img1_path, model, layer_names)
-            features2 = extract_features(img2_path, model, layer_names)
+            features1 = extract_features(str(img1_path), model, layer_names)
+            features2 = extract_features(str(img2_path), model, layer_names)
             similarities = calculate_similarity(features1, features2)
-            save_similarities_to_csv(img1_path, img2_path, similarities, csv_path)
+            save_similarities_to_csv(
+                str(img1_path), str(img2_path), similarities, csv_path
+            )
 
     end_time = time.time()
     print(f"總執行時間: {end_time - start_time:.3f} 秒")
 
 
 # 示例使用
-process_images(start_folder=1, end_folder=1007, root_dir="image_1")
+process_images(
+    start_folder=1,
+    end_folder=1007,
+    root_dir="image_1",
+)

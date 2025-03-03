@@ -40,7 +40,7 @@ def save_results_to_csv(final_results, folder1, folder2, output_csv):
 
 
 def main():
-    datasets_dir = Path("/Users/wangyichao/vgg/image_1")
+    datasets_dir = Path("/Users/wangyichao/tattoo/image_1")
 
     # **设置要遍历的子文件夹范围**
     start_folder = 3  # 例如要从 image_1/3 开始

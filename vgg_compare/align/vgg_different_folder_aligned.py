@@ -168,7 +168,7 @@ def process_different_folder_images(start_folder, end_folder, root_dir):
 
 # 執行函數
 process_different_folder_images(
-    root_dir="image_1",
     start_folder=1,
     end_folder=180,
+    root_dir="image_1",
 )
