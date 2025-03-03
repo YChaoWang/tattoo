@@ -1,0 +1,5 @@
+aligned_1_1_1.png aligned_1_1_1.png 0 0
+aligned_1_1_1.png aligned_1_1_c1_1.png 0 0
+aligned_1_1_1.png aligned_1_2_c1_1.png 0 0
+aligned_1_1_a1_1.png aligned_1_1_1.png 0 0
+aligned_1_1_a1_1.png aligned_1_1_c1_1.png 0 0

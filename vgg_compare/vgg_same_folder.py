@@ -129,6 +129,6 @@ def process_images(start_folder, end_folder, root_dir):
 # 示例使用
 process_images(
     start_folder=1,
-    end_folder=1007,
+    end_folder=180,
     root_dir="image_1",
 )

@@ -40,10 +40,10 @@ def save_results_to_csv(final_results, folder1, folder2, output_csv):
 
 
 def main():
-    datasets_dir = Path("/Users/wangyichao/tattoo/image_1")
+    datasets_dir = Path("image_1")
 
     # **设置要遍历的子文件夹范围**
-    start_folder = 3  # 例如要从 image_1/3 开始
+    start_folder = 1  # 例如要从 image_1/3 开始
     end_folder = 180  # 例如要处理到 image_1/180
 
     # 确保临时目录和结果目录存在
@@ -75,9 +75,28 @@ def main():
         functions.rename_files_in_directory(folder)
         functions.convert_folder_jpg_to_png(folder)
 
-    # **創建不同文件夾之間的配對**
-    folder_pairs = list(itertools.combinations(selected_folders, 2))
-    print(f"\n📂 總共有 {len(folder_pairs)} 對不同文件夾需要進行比較\n")
+    # **篩選有效文件夾（至少含有2張圖片的文件夾）**
+    valid_folders = []
+    for folder in selected_folders:
+        images = list(folder.glob("*.png"))
+        if len(images) > 1:  # 只保留至少含有2張圖片的文件夾
+            valid_folders.append(folder)
+        else:
+            print(f"⚠️ 文件夾 {folder.name} 圖片數量不足，跳過")
+
+    # **創建不同文件夾之間的配對（不重複）**
+    folder_pairs = list(itertools.combinations(valid_folders, 2))
+
+    # **計算總比對數量**
+    total_comparisons = 0
+    for folder1, folder2 in folder_pairs:
+        images1 = list(folder1.glob("*.png"))
+        images2 = list(folder2.glob("*.png"))
+        pair_comparisons = len(images1) * len(images2)
+        total_comparisons += pair_comparisons
+
+    print(f"\n📂 有效文件夾數量: {len(valid_folders)}")
+    print(f"🖼 總圖片比對數量: {total_comparisons}\n")
 
     # **遍歷文件夾對**
     for folder_idx, (folder1, folder2) in enumerate(folder_pairs, start=1):
@@ -88,10 +107,6 @@ def main():
         # 獲取兩個文件夾中的所有PNG圖片
         images1 = sorted([f for f in folder1.glob("*.png")])
         images2 = sorted([f for f in folder2.glob("*.png")])
-
-        if not images1 or not images2:
-            print(f"⚠️ 文件夾 {folder1.name} 或 {folder2.name} 沒有PNG圖片，跳過")
-            continue
 
         # 構建所有可能的跨文件夾圖片對
         all_pairs = list(itertools.product(images1, images2))
@@ -118,7 +133,11 @@ def main():
                 start_time = time.time()  # 记录处理时间
 
                 # **圖片對齊**
-                aligned_img1, aligned_img2 = compare_images(img1, img2)
+                try:
+                    aligned_img1, aligned_img2 = compare_images(img1, img2)
+                except Exception as e:
+                    print(f"❌ 圖片對齊失敗: {img1_path} 和 {img2_path} - 錯誤: {e}")
+                    continue
 
                 # **儲存對齊後的圖片**
                 aligned_img1_path = temp_dir / f"aligned_{img1_path.name}"
@@ -152,25 +171,40 @@ def main():
         print(f"\n🚀 開始執行 SuperGlue 匹配（{folder1.name} vs {folder2.name}）...")
         superglue_start_time = time.time()
 
-        results = superglue_similarity(
-            str(temp_dir),
-            str(temp_dir),
-            str(pairs_txt_path),
-            str(folder_results_dir),
-        )
+        try:
+            results = superglue_similarity(
+                str(temp_dir),
+                str(temp_dir),
+                str(pairs_txt_path),
+                str(folder_results_dir),
+            )
 
-        superglue_elapsed_time = time.time() - superglue_start_time
-        print(
-            f"🎯 SuperGlue 完成（{folder1.name} vs {folder2.name}），匹配結果數量: {len(results)}，耗時 {superglue_elapsed_time:.2f} 秒\n"
-        )
+            superglue_elapsed_time = time.time() - superglue_start_time
+            print(
+                f"🎯 SuperGlue 完成（{folder1.name} vs {folder2.name}），匹配結果數量: {len(results)}，耗時 {superglue_elapsed_time:.2f} 秒\n"
+            )
 
-        # **儲存結果**
-        save_results_to_csv(
-            results,
-            folder1.name,
-            folder2.name,
-            f"{csv_output_dir}/superglue_different_aligned_data.csv",
-        )
+            # **儲存結果**
+            save_results_to_csv(
+                results,
+                folder1.name,
+                folder2.name,
+                f"{csv_output_dir}/superglue_different_aligned_data.csv",
+            )
+        except Exception as e:
+            print(
+                f"❌ SuperGlue 匹配失敗（{folder1.name} vs {folder2.name}）- 錯誤: {e}"
+            )
+            continue
+
+        # 清理臨時文件，避免佔用過多磁盤空間
+        for temp_file in temp_dir.glob("aligned_*.png"):
+            try:
+                os.remove(temp_file)
+            except Exception as e:
+                print(f"⚠️ 無法刪除臨時文件 {temp_file} - {e}")
+
+    print(f"\n✨ 所有文件夾配對處理完成！總共處理了 {len(folder_pairs)} 對文件夾")
 
 
 if __name__ == "__main__":
