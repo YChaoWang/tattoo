@@ -6,7 +6,7 @@ import itertools
 from pathlib import Path
 from models.image_alignment import compare_images
 import functions
-import match_pairs as superglue
+from match_pairs import superglue_similarity
 
 
 def save_results_to_csv(final_results, folder1, folder2, output_csv):
@@ -152,7 +152,7 @@ def main():
         print(f"\n🚀 開始執行 SuperGlue 匹配（{folder1.name} vs {folder2.name}）...")
         superglue_start_time = time.time()
 
-        results = superglue.superglue_similarity(
+        results = superglue_similarity(
             str(temp_dir),
             str(temp_dir),
             str(pairs_txt_path),

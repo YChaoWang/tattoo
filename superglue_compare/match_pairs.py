@@ -7,10 +7,11 @@ import torch
 import os
 import cv2
 
-from models.image_alignment import compare_images
-from pairs_txt import generate_pairs_txt
+
 from models.matching import Matching
 from models.utils import make_matching_plot, AverageTimer, read_image
+from pairs_txt import generate_pairs_txt
+from models.image_alignment import compare_images
 
 torch.set_grad_enabled(False)
 

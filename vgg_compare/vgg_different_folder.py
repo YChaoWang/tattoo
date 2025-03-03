@@ -71,6 +71,7 @@ def get_valid_folders(root_dir, start_folder, end_folder):
         folder_path = os.path.join(root_dir, str(folder_num))
 
         if not os.path.isdir(folder_path):
+            print(f"跳過: {folder_path}（不是資料夾）")
             continue  # 跳過不存在的資料夾
 
         img_files = [
@@ -79,6 +80,8 @@ def get_valid_folders(root_dir, start_folder, end_folder):
 
         if len(img_files) > 1:  # 只保留至少 2 張圖的資料夾
             valid_folders.append(folder_path)
+        else:
+            print(f"跳過: {folder_path}（圖片數量不足）")
 
     return valid_folders
 

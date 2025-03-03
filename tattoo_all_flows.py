@@ -52,6 +52,26 @@ def count_images_in_folder(folder_path):
     )
 
 
+def get_valid_folders(root_dir, start_folder, end_folder):
+    """獲取至少包含 2 張圖片的資料夾"""
+    valid_folders = []
+
+    for folder_num in range(start_folder, end_folder + 1):
+        folder_path = os.path.join(root_dir, str(folder_num))
+
+        if not os.path.isdir(folder_path):
+            continue  # 跳過不存在的資料夾
+
+        img_files = [
+            f for f in os.listdir(folder_path) if f.lower().endswith((".jpg", ".png"))
+        ]
+
+        if len(img_files) > 1:  # 只保留至少 2 張圖的資料夾
+            valid_folders.append(folder_path)
+
+    return valid_folders
+
+
 def extract_features(img, img_path, model, layer_names):
     """Extract VGG16 features from an image"""
     img = Image.fromarray(img).convert("RGB")
@@ -161,8 +181,10 @@ def main():
 
     # Define paths
     root_dir = "image_1"
-    start_folder = 1
-    end_folder = 180
+    start_folder = 1  # 要處理的資料夾起始編號
+    end_folder = 1  # 要處理的資料夾結束編號
+    range_start_folder = 1  # 圖片比對的資料夾範圍起始編號
+    range_end_folder = 180  # 圖片比對的資料夾範圍結束編號
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
 
@@ -188,39 +210,65 @@ def main():
     # 2. FILTER FOLDERS AND PROCESS THOSE WITH AT LEAST 2 IMAGES
     print("Filtering folders with at least 2 images...")
 
-    # Filter valid folders that have at least 2 images
-    valid_folders = []
-    for folder_num in range(start_folder, end_folder + 1):
+    # 使用新函數獲取有效資料夾
+    valid_folders = get_valid_folders(root_dir, start_folder, end_folder)
+    print(f"Number of valid folders to process: {len(valid_folders)}")
+
+    # 打印找到的有效資料夾
+    for folder_path in valid_folders:
+        image_count = count_images_in_folder(folder_path)
+        print(
+            f"Folder {os.path.basename(folder_path)} has {image_count} images - included"
+        )
+
+    # 篩選比對範圍的資料夾 (這些資料夾的圖片將用於比對)
+    comparison_folders = []
+    for folder_num in range(range_start_folder, range_end_folder + 1):
         folder_path = os.path.join(root_dir, str(folder_num))
         if os.path.isdir(folder_path):
             image_count = count_images_in_folder(folder_path)
-            if image_count >= 2:
-                valid_folders.append(folder_num)
-                print(f"Folder {folder_num} has {image_count} images - included")
-            else:
-                print(f"Folder {folder_num} has only {image_count} images - skipped")
+            if image_count > 1:  # 只要有至少 1 張圖片就可以用於比對
+                comparison_folders.append(folder_num)
+                print(
+                    f"Comparison folder {folder_num} has {image_count} images - included for comparison"
+                )
 
-    print(f"Number of valid folders with at least 2 images: {len(valid_folders)}")
+    print(f"Number of folders for comparison: {len(comparison_folders)}")
 
     all_comparisons = []
     total_comparisons = 0
 
-    # Collect all images across valid folders
-    all_images = []
-    for folder_num in valid_folders:
+    # 收集所有要處理的資料夾中的圖片
+    process_images = []
+    for folder_path in valid_folders:
+        img_paths = [
+            os.path.join(folder_path, f)
+            for f in os.listdir(folder_path)
+            if f.endswith(".jpg") or f.endswith(".png")
+        ]
+        process_images.extend([convert_png_to_jpg(img_path) for img_path in img_paths])
+
+    # 收集所有比對範圍資料夾中的圖片
+    comparison_images = []
+    for folder_num in comparison_folders:
         folder_path = os.path.join(root_dir, str(folder_num))
         img_paths = [
             os.path.join(folder_path, f)
             for f in os.listdir(folder_path)
             if f.endswith(".jpg") or f.endswith(".png")
         ]
-        all_images.extend([convert_png_to_jpg(img_path) for img_path in img_paths])
+        comparison_images.extend(
+            [convert_png_to_jpg(img_path) for img_path in img_paths]
+        )
 
-    print(f"Total number of images to process: {len(all_images)}")
+    print(f"Total number of images to process: {len(process_images)}")
+    print(f"Total number of images for comparison: {len(comparison_images)}")
 
     # Process each image as the base image
-    for img_idx, base_img_path in enumerate(all_images, 1):
-        print(f"\n[{img_idx}/{len(all_images)}] Processing base image: {base_img_path}")
+    for img_idx, base_img_path in enumerate(process_images, 1):
+        print(
+            f"\n[{img_idx}/{len(process_images)}] Processing base image: {base_img_path}"
+        )
         base_folder = extract_folder(base_img_path)
         base_img = cv2.imread(base_img_path, cv2.IMREAD_GRAYSCALE)
 
@@ -228,10 +276,12 @@ def main():
             print(f"Error reading base image: {base_img_path}")
             continue
 
-        # Compare with all other images (can be optimized to avoid duplicate comparisons)
+        # Compare with all images in the comparison range
         img_comparisons = []
 
-        for compare_img_path in tqdm(all_images, desc=f"Comparing with other images"):
+        for compare_img_path in tqdm(
+            comparison_images, desc=f"Comparing with other images"
+        ):
             if base_img_path == compare_img_path:
                 continue  # Skip self-comparison
 
@@ -311,7 +361,7 @@ def main():
             comparisons_df = pd.DataFrame(img_comparisons)
             # 確保只考慮至少有2張圖片的資料夾
             folders_with_counts = {}
-            for folder_num in valid_folders:
+            for folder_num in comparison_folders:
                 folder_path = os.path.join(root_dir, str(folder_num))
                 folders_with_counts[folder_path] = count_images_in_folder(folder_path)
 
@@ -464,7 +514,7 @@ def main():
         # Save progress after each image
         progress_info = {
             "completed_images": img_idx,
-            "total_images": len(all_images),
+            "total_images": len(process_images),
             "total_comparisons": total_comparisons,
             "last_processed": base_img_path,
             "elapsed_time": time.time() - start_time,
@@ -474,12 +524,12 @@ def main():
 
         # Print progress summary
         elapsed = time.time() - start_time
-        images_left = len(all_images) - img_idx
+        images_left = len(process_images) - img_idx
         avg_time_per_img = elapsed / img_idx if img_idx > 0 else 0
         est_time_left = avg_time_per_img * images_left
 
         print(
-            f"\nProgress: {img_idx}/{len(all_images)} images processed ({img_idx/len(all_images)*100:.1f}%)"
+            f"\nProgress: {img_idx}/{len(process_images)} images processed ({img_idx/len(process_images)*100:.1f}%)"
         )
         print(f"Elapsed time: {elapsed:.1f} seconds ({elapsed/60:.1f} minutes)")
         print(
@@ -495,9 +545,9 @@ def main():
     # Save top 7 folders for all images
     print("Saving top 7 confidence subfolders for all images...")
 
-    # 確保只考慮至少有2張圖片的資料夾
+    # 確保只考慮比對範圍內的資料夾
     folders_with_counts = {}
-    for folder_num in valid_folders:
+    for folder_num in comparison_folders:
         folder_path = os.path.join(root_dir, str(folder_num))
         folders_with_counts[folder_path] = count_images_in_folder(folder_path)
 
