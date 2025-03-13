@@ -182,7 +182,7 @@ def main():
     # Define paths
     root_dir = "image_1"
     start_folder = 1  # 要處理的資料夾起始編號
-    end_folder = 1  # 要處理的資料夾結束編號
+    end_folder = 180  # 要處理的資料夾結束編號
     range_start_folder = 1  # 圖片比對的資料夾範圍起始編號
     range_end_folder = 180  # 圖片比對的資料夾範圍結束編號
     results_dir = Path("results")
@@ -190,9 +190,6 @@ def main():
 
     vgg_results_dir = results_dir / "vgg_comparisons"
     vgg_results_dir.mkdir(exist_ok=True)
-
-    temp_dir = Path("temp_aligned_images")
-    temp_dir.mkdir(exist_ok=True)
 
     superglue_results_dir = results_dir / "superglue_matches"
     superglue_results_dir.mkdir(parents=True, exist_ok=True)
@@ -270,7 +267,7 @@ def main():
             f"\n[{img_idx}/{len(process_images)}] Processing base image: {base_img_path}"
         )
         base_folder = extract_folder(base_img_path)
-        base_img = cv2.imread(base_img_path, cv2.IMREAD_GRAYSCALE)
+        base_img = cv2.imread(base_img_path)
 
         if base_img is None:
             print(f"Error reading base image: {base_img_path}")
@@ -285,14 +282,7 @@ def main():
             if base_img_path == compare_img_path:
                 continue  # Skip self-comparison
 
-            # Check if we already did this comparison in reverse
-            if any(
-                comp["img1"] == compare_img_path and comp["img2"] == base_img_path
-                for comp in all_comparisons
-            ):
-                continue
-
-            compare_img = cv2.imread(compare_img_path, cv2.IMREAD_GRAYSCALE)
+            compare_img = cv2.imread(compare_img_path)
 
             if compare_img is None:
                 print(f"Error reading comparison image: {compare_img_path}")
@@ -393,42 +383,22 @@ def main():
             if len(top_folders) > 0:
                 print(f"\nRunning SuperGlue with top 7 folders for {base_img_path}...")
 
-                # Clear temp directory
-                for temp_file in temp_dir.glob("*"):
-                    if temp_file.is_file():
-                        temp_file.unlink()
-
-                # Clear aligned_to_original mapping for this base image
+                # Clear the aligned_to_original mapping for this base image
                 aligned_to_original.clear()
 
-                # Get the full color image for SuperGlue
-                base_img_color = cv2.imread(base_img_path)
-                if base_img_color is None:
-                    print(f"Error reading color image: {base_img_path}")
-                    continue
+                # Create a directory to store the pairs file
+                pairs_dir = results_dir / "pairs"
+                pairs_dir.mkdir(exist_ok=True)
 
-                # Save the aligned base image
-                base_img_name = os.path.basename(base_img_path)
-                aligned_base_path = temp_dir / f"aligned_base_{base_img_name}"
-                cv2.imwrite(str(aligned_base_path), base_img_color)
+                # Update the pairs_txt_path to be in the pairs directory
+                pairs_txt_path = (
+                    pairs_dir / f"pairs_{os.path.basename(base_folder)}.txt"
+                )
 
-                # Add base image to mapping
-                aligned_to_original[str(aligned_base_path)] = base_img_path
-
-                # Create pairs.txt for SuperGlue
-                pairs_txt_path = temp_dir / "pairs.txt"
+                # Write the pairs to the file
                 with open(pairs_txt_path, "w") as f:
-                    # Only process top 7 folders
-                    for _, folder_row in top_folders.head(7).iterrows():
-                        folder = folder_row["folder_img2"]
-                        print(f"  Processing matches with folder: {folder}")
-
-                        folder_path = Path(folder)
-                        if not folder_path.exists():
-                            print(f"  Folder does not exist: {folder}")
-                            continue
-
-                        # Get all images in this folder
+                    for _, row in top_folders.iterrows():
+                        folder = row["folder_img2"]
                         folder_img_paths = [
                             os.path.join(folder, img_file)
                             for img_file in os.listdir(folder)
@@ -436,44 +406,8 @@ def main():
                         ]
 
                         for compare_img_path in folder_img_paths:
-                            compare_img = cv2.imread(compare_img_path)
-                            if compare_img is None:
-                                print(f"  Error reading image: {compare_img_path}")
-                                continue
-
-                            # Align images
-                            aligned_base, aligned_compare = compare_images(
-                                cv2.cvtColor(base_img_color, cv2.COLOR_BGR2GRAY),
-                                cv2.cvtColor(compare_img, cv2.COLOR_BGR2GRAY),
-                            )
-
-                            # Convert back to color for SuperGlue
-                            aligned_base_color = cv2.cvtColor(
-                                aligned_base, cv2.COLOR_GRAY2BGR
-                            )
-                            aligned_compare_color = cv2.cvtColor(
-                                aligned_compare, cv2.COLOR_GRAY2BGR
-                            )
-
-                            # Save aligned comparison image
-                            compare_img_name = os.path.basename(compare_img_path)
-                            aligned_compare_path = (
-                                temp_dir / f"aligned_compare_{compare_img_name}"
-                            )
-                            cv2.imwrite(str(aligned_base_path), aligned_base_color)
-                            cv2.imwrite(
-                                str(aligned_compare_path), aligned_compare_color
-                            )
-
-                            # Store the mapping from aligned image to original path
-                            aligned_to_original[str(aligned_compare_path)] = (
-                                compare_img_path
-                            )
-
-                            # Add to pairs.txt
-                            f.write(
-                                f"{aligned_base_path.name} {aligned_compare_path.name} 0 0\n"
-                            )
+                            # Add rotation parameters (0 0) at the end of each line
+                            f.write(f"{base_img_path} {compare_img_path} 0 0\n")
 
                 # Check if pairs.txt has content
                 if pairs_txt_path.stat().st_size == 0:
@@ -483,31 +417,26 @@ def main():
                 # Create output directory for SuperGlue results
                 base_folder_name = os.path.basename(base_folder)
                 superglue_output_dir = (
-                    superglue_results_dir
-                    / f"base_{base_folder_name}_{os.path.basename(base_img_path)}"
+                    results_dir / "superglue_matches" / base_folder_name
                 )
                 superglue_output_dir.mkdir(parents=True, exist_ok=True)
 
-                # Run SuperGlue
-                print(f"  Running SuperGlue for {base_img_path}...")
-                try:
-                    results = superglue_similarity(
-                        str(temp_dir),
-                        str(temp_dir),
-                        str(pairs_txt_path),
-                        str(superglue_output_dir),
-                    )
+                # Run SuperGlue with the correct paths
+                results = superglue_similarity(
+                    ".",  # Use current directory as base
+                    ".",  # Use current directory as base
+                    str(pairs_txt_path),
+                    str(superglue_output_dir),
+                )
 
-                    # Save SuperGlue results with original path mapping
-                    save_superglue_results_to_csv(
-                        results,
-                        aligned_to_original,
-                        str(superglue_results_dir / "all_tatoos_superglue_matches.csv"),
-                    )
+                # Save SuperGlue results with original path mapping
+                save_superglue_results_to_csv(
+                    results,
+                    aligned_to_original,
+                    superglue_results_dir / f"superglue_results_{base_folder_name}.csv",
+                )
 
-                    print(f"  SuperGlue matching completed for {base_img_path}")
-                except Exception as e:
-                    print(f"  Error running SuperGlue: {e}")
+                print(f"  SuperGlue matching completed for {base_img_path}")
             else:
                 print(f"No matching folders found for {base_img_path}")
 
