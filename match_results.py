@@ -141,29 +141,6 @@ save_dataframe_as_image(
     output_dir / "verify_new_company_different_folder_analysis.png",
     "Different Folder Analysis",
 )
-
-# Add additional histogram for matches distribution
-plt.figure(figsize=(12, 6))
-max_match = max(data["Matches"].max() + 10, 300)
-bins = np.arange(0, max_match, 25)  # Using bins of size 25
-
-plt.hist(data_same["Matches"], bins=bins, alpha=0.7, label="Same Folder", color="blue")
-plt.hist(
-    data_different["Matches"],
-    bins=bins,
-    alpha=0.7,
-    label="Different Folder",
-    color="red",
-)
-
-plt.xlabel("Matches Count")
-plt.ylabel("Frequency")
-plt.title("Distribution of Match Points (Same vs Different Folder)")
-plt.legend()
-plt.grid(axis="y", linestyle="--", alpha=0.7)
-plt.savefig(output_dir / "verify_new_company_matches_histogram.png", dpi=300)
-plt.show()
-
 # Calculate basic statistics for matches
 matches_stats = pd.DataFrame(
     {
